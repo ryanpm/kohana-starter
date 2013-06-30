@@ -14,6 +14,11 @@ class Lib_ImageProcess{
 	public $cache_path;
 	public $destination;
 
+	public $frame 			 = false;
+	public $background_color = array(255,255,50); // applicable if frame is true
+	public $border_size 	 = 0;
+	public $border_color 	 = array(50,50,50);
+
 	public $is_image = false;
 	public $is_existing = false;
 	public $init = false;
@@ -96,6 +101,7 @@ class Lib_ImageProcess{
 
         		list($x,$y) = explode("x",$this->size);
                 $im = imagecreatetruecolor($x,$y);
+
                 $white = imagecolorallocate($im, 20, 255, 255 );
                 $black = imagecolorallocate($im, 0, 0, 0 );
 
@@ -252,11 +258,43 @@ class Lib_ImageProcess{
 
 		}
 
-		$im_dst = imagecreatetruecolor($nw,$nh);
-		$white  = imagecolorallocate($im_dst,255,255,255);
-		imagefill($im_dst, 0, 0, $white);
+		$dest_x = $dest_y = 0;
+		if( $this->frame ){
 
-		ImageCopyResampled($im_dst, $im_src, 0, 0, $offsetX, $offsetY, $nw, $nh, $sw, $sh);
+			$im_dst = imagecreatetruecolor($rw,$rh);
+			$dest_x = ceil(($rw-$nw)/2);
+			$dest_y = ceil(($rh-$nh)/2);
+			$border_x  = $rw;
+			$border_y  = $rh;
+
+		}else{
+
+			$im_dst = imagecreatetruecolor($nw,$nh);
+			$border_x  = $nw;
+			$border_y  = $nh;
+
+		}
+
+		if( $this->border_size > 0 ){
+			$cc = $this->parseColor($this->border_color);
+		}else{
+			$cc = $this->parseColor($this->background_color);
+		}
+
+		$background_color  = imagecolorallocate($im_dst,$cc[0],$cc[1],$cc[2]);
+		imagefill($im_dst, 0, 0, $background_color);
+
+		if( $this->border_size > 0 ){
+
+			// fill with background to offset position
+			$bc = $this->parseColor($this->background_color);
+			$background_color  = imagecolorallocate($im_dst,$bc[0],$bc[1],$bc[2]);
+
+			imagefilledrectangle($im_dst, $this->border_size, $this->border_size, $border_x-$this->border_size-1, $border_y-$this->border_size-1, $background_color);
+
+		}
+
+		ImageCopyResampled($im_dst, $im_src, $dest_x, $dest_y, $offsetX, $offsetY, $nw, $nh, $sw, $sh);
 
 		if ($doSharpen)
 		{
@@ -371,4 +409,22 @@ class Lib_ImageProcess{
 		return $mime;
 
 	}
+
+
+
+	public function parseColor($color)
+	{
+		if( is_string($color) ){
+			if( $color[0] == '#' ){ //hex
+				$r = hexdec(substr($color, 1,2));
+				$g = hexdec(substr($color, 3,2));
+				$b = hexdec(substr($color, 5,2));
+			}
+			return array($r,$g,$b);
+		}elseif( is_array($color) ){
+			return $color;
+		}
+
+	}
+
 }
