@@ -4,14 +4,16 @@ class Lib_ImageProcess{
 
 	public $imagestats;
 	public $pathinfo;
-	public $quality    		= 90;
+	public $quality    		= 100;
 	public $round    		= false;
 	public $crop     		= false;
 	public $crop_position = array('left','top');
 	public $extension;
 	public $source;
+	public $alternative_source;
 	public $size;
 	public $cache_path;
+	public $recache = false;
 	public $destination;
 
 	public $frame 			 = false;
@@ -23,18 +25,25 @@ class Lib_ImageProcess{
 	public $is_existing = false;
 	public $init = false;
 
-	function __construct($source=null,$destination=null,$size=null,$options=array())
+	public static function getImageFile($image_src,$size=null)
+	{
+		$img = new Lib_ImageProcess($image_src,$size);
+		$img->source = $image_src;
+		$img->size = $size;
+		return $img;
+
+	}
+
+	function __construct($source=null,$size=null)
 	{
 		$this->cache_path = APPPATH . 'cache/';
 		$this->source 		= $source;
-		$this->destination 	= $destination;
 		$this->size 		= $size;
 	}
 
-	public function init()
-	{
+	public function init(){
 
-		if($this->init)return;
+		if($this->init) return;
 		$this->analyze();
         $this->init = true;
 
@@ -44,23 +53,33 @@ class Lib_ImageProcess{
 	{
 
         if( isset($this->source) ){
-        	if(file_exists($this->source)){
 
-            	$this->is_existing = true;
-            	if( !isset($this->pathinfo) ){
+        	$found = false;
+        	// source not found
+        	if(file_exists($this->source)){
+        		$found = true;
+        	}elseif(file_exists($this->alternative_source)){
+        		$found = true;
+        		$this->source = $this->alternative_source;
+        	}
+
+        	if($found){
+	        	$this->is_existing = true;
+	        	if( !isset($this->pathinfo) ){
 			        $this->pathinfo    =pathinfo($this->source);
-            	}
-            	if (!isset($this->imagestats)) {
+	        	}
+	        	if (!isset($this->imagestats)) {
 			        $this->imagestats  = getimagesize($this->source);
-            	}
+	        	}
 		        if(count($this->imagestats)>3 and isset($this->imagestats['mime'])){
 	                $this->is_image = true;
 		        }
-		        $this->extension = $this->pathinfo['extension'];
+		        $this->extension = isset($this->pathinfo)?$this->pathinfo:'';
         	}
         }
 
 	}
+
 
 	public function clear()
 	{
@@ -72,13 +91,10 @@ class Lib_ImageProcess{
 
 	}
 
-	public  function render()
+	public function getCacheName()
 	{
-
-		$this->init();
         $append_name = str_replace("x","_", $this->size );
-
-        $file_name = uniqid();
+        $file_name = $this->source;
         if(!$this->is_existing){
                 $file_name = 'no_file_found';
         }else{
@@ -92,10 +108,25 @@ class Lib_ImageProcess{
         if($this->round){
                 $append_name .= '_r';
         }
+		return $append_name."_".md5($append_name.$file_name);
 
-        $cache_src = $this->cache_path.$append_name."_".$file_name;;
+	}
+
+	public  function render()
+	{
+
+		$this->init();
+        $cache_src = $this->cache_path.$this->getCacheName();
         // let see if the image has not yet been resized before
-        if( !file_exists($cache_src) or true){
+        try{
+        	//if failed file is not yet in the cache so catch it to resize the file
+        	if( $this->recache ){
+        		@unlink($cache_src);
+        	}
+	        $time   	=   gmdate('r', filemtime($cache_src));
+
+        }catch(Exception $e){
+
 
             if( !$this->is_image or !$this->is_existing ){
 
@@ -121,13 +152,13 @@ class Lib_ImageProcess{
 
             }
 
+	        $time   	=   gmdate('r', filemtime($cache_src));
+
         }
 
-        $time   	=   gmdate('r', filemtime($cache_src));
+        $etag   	=   md5($time.$cache_src);
         $image_info = 	getimagesize($cache_src);
         $filesize  	=   filesize($cache_src);
-        $etag   	=   md5($time.$file_name);
-
         // See if the browser already has the image
 		$lastModifiedString	= gmdate('D, d M Y H:i:s', filemtime($cache_src)) . ' GMT';
 
@@ -140,6 +171,7 @@ class Lib_ImageProcess{
         // header("Cache-Control: must-revalidate, max-age=10800, pre-check=10800");
         // header('Expires: '.$time);
         // header("Etag: ".$etag);
+
         echo $data;
         exit;
 
@@ -401,13 +433,27 @@ class Lib_ImageProcess{
 
 	public function getMimeType()
 	{
-
+		if( !isset($this->imagestats['mime']) )return null;
 		$mime	= $this->imagestats['mime'];
 		if( $this->imagestats['mime'] == 'image/gif'){
 			$mime				= 'image/png'; // We need to convert GIFs to PNGs
 		}
 		return $mime;
 
+	}
+
+	public function getExtesion()
+	{
+		if( isset($this->pathinfo['extension']) ){
+			return $this->pathinfo['extension'];
+		}else{
+			$m = $this->getMimeType();
+			if( $m != null ){
+				list($t,$x) = explode('/',$this->getMimeType());
+				return $x;
+			}
+		}
+		return null;
 	}
 
 
