@@ -76,6 +76,10 @@ class Lib_ImageProcess{
 		        }
 		        $this->extension = isset($this->pathinfo)?$this->pathinfo:'';
         	}
+
+        	if(  $this->size == '' ){
+        		 $this->size = $this->imagestats[0].'x'. $this->imagestats[1];
+        	}
         }
 
 	}
@@ -133,17 +137,17 @@ class Lib_ImageProcess{
         		list($x,$y) = explode("x",$this->size);
                 $im = imagecreatetruecolor($x,$y);
 
-                $white = imagecolorallocate($im, 20, 255, 255 );
+                $white = imagecolorallocate($im, 255, 255, 255 );
                 $black = imagecolorallocate($im, 0, 0, 0 );
 
                 imagefill($im, 0, 0, $white );
-                $word = ($this->is_existing)?'['.$this->extension.']':'[!FOUND]';
+                // $word = ($this->is_existing)?'['.$this->extension.']':'[!FOUND]';
 
-                $font = 12;
-                $xc = ($x/2)-( strlen($word)*4.5 );
-                $yc = ($y/2)-8;
+                // $font = 12;
+                // $xc = ($x/2)-( strlen($word)*4.5 );
+                // $yc = ($y/2)-8;
 
-                imagestring($im, 12, $xc, $yc, $word, $black);
+                // imagestring($im, 12, $xc, $yc, $word, $black);
                 imagejpeg($im,$cache_src);
 
             }else{
