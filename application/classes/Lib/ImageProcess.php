@@ -78,7 +78,11 @@ class Lib_ImageProcess{
         	}
 
         	if(  $this->size == '' ){
-        		 $this->size = $this->imagestats[0].'x'. $this->imagestats[1];
+        		 if(isset($this->imagestats)){
+	        		 $this->size = $this->imagestats[0].'x'. $this->imagestats[1];
+        		 }else{
+	        		 $this->size = '100x100';
+	        	 }
         	}
         }
 
