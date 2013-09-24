@@ -4,17 +4,16 @@ if (!function_exists("get_option")) {
   die;  // Silence is golden, direct call is prohibited
 }
 
-class SGSH_payment_paypal{
+class Lib_Paypal{
 
-  protected $paypal_email;
+  	protected $paypal_email;
 	protected $paypal_URL;
 	private $validateAccount;
 	private $currency;
 	private $notify_url;
 	private $return_url;
 	private $cancel_url;
-
-
+ 
 	private $api_un;
 	private $api_pw;
 	private $api_sig;
@@ -58,26 +57,7 @@ class SGSH_payment_paypal{
 		$this->cancel_url = $sgsh_pages->prepare_url($sgsh_pages->user_page_id, array('vpg'=>'pln','vptp'=>'summary') );
 
 	} 
-  
-	public function get_frequency_code($id)
-	{
-		if( $id == 'Y' ){
-			return 'Year';
-		}elseif( $id == 'M' ){
-			return 'Month';
-		}
-	}
-
-	public function get_next_payment($id)
-	{
-		if( $id == 'Y' ){
-			$days = 365;
-		}elseif( $id == 'M' ){
-			$days = 30;
-		}
-		return  gmdate('Y-m-d',gmmktime()+(60*60*24*$days))  .'T'.  gmdate('G:i:s',gmmktime()+(60*60*24*$days)) . 'Z';
-	}
-
+   
 	public function get_reponse_array($res){
 		$ret = array();
 		parse_str($res,$ret);
@@ -87,12 +67,36 @@ class SGSH_payment_paypal{
 	public function get_response($method,$data)
 	{
 
-		global $sgsh_current_user,$wpdb;
+	global $sgsh_current_user,$wpdb;
+		$url = '';
+		$values = array();
+
+		if($this->sandbox){
+			$url = 'api-3t.sandbox.paypal.com';
+		}else{
+			$url = 'api-3t.paypal.com';
+		}
+
 		$def_data['USER'] 		= $this->api_un;
 		$def_data['PWD'] 		= $this->api_pw;
 		$def_data['SIGNATURE'] 	= $this->api_sig;
 		$def_data['VERSION'] 	= $this->api_ver;
 		$data = $def_data + $data;
+
+		// $postdata = http_build_query(
+		//     array('METHOD'=>$method)+$data
+		// );
+
+		// $opts = array('http' =>
+		//     array(
+		//         'method'  => 'POST',
+		//         'header'  => 'Content-type: application/x-www-form-urlencoded',
+		//         'content' => $postdata
+		//     )
+		// );
+		// $context  = stream_context_create($opts);
+		// $result = file_get_contents('https://api-3t.sandbox.paypal.com/nvp', false, $context);
+		// $values = $this->get_reponse_array($result);
 
 		$req = 'METHOD='.$method;
 		foreach ($data as $key => $value) {
@@ -131,11 +135,7 @@ class SGSH_payment_paypal{
 		$history['post_data'] 		= serialize($values);
 		$history['request_data'] 		= serialize($data);
 		$wpdb->insert('sgsh_paypal_history',$history);
-
-		echo "<br/><br/> $method  DATA --> ";
-		print_r($data);
-		echo "<br/><br/> $method  RESPONSE --> ";
-		print_r($values);
+ 
 
 		return $values;
 	}
