@@ -56,11 +56,16 @@ class Lib_ImageProcess{
 
         	$found = false;
         	// source not found
-        	if(file_exists($this->source)){
-        		$found = true;
-        	}elseif(file_exists($this->alternative_source)){
-        		$found = true;
-        		$this->source = $this->alternative_source;
+         	if(file_exists($this->source)){
+        		if (is_file($this->source)) {
+        			$found = true;
+        		}
+        	}
+        	if (!$found) {
+	        	if(file_exists($this->alternative_source)){
+	        		$found = true;
+	        		$this->source = $this->alternative_source;
+	        	}
         	}
 
         	if($found){
