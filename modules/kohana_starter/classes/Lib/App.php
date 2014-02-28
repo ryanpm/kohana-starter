@@ -26,25 +26,6 @@ class Lib_App {
 		return ($value!=null)?$value:Lib_Setting::get($key);
 	}
 
-	public static function paypal()
-	{
-		$paypal_config          = self::config('paypal');
-		$credentials            = $paypal_config[$paypal_config['use']];
 
-		$paypal                 = new Lib_Paypal();
-		$paypal->sandbox        = $credentials['sandbox'];
-		$paypal->paypal_url     = $credentials['url'];
-		$paypal->paypal_email   = $credentials['receiver_email'];
-		$paypal->api_un         = $credentials['api_un'];
-		$paypal->api_pw         = $credentials['api_pw'];
-		$paypal->api_sig        = $credentials['api_sig'];
-		$paypal->paypal_api_url = $credentials['api_url'];
-		$paypal->currency       = $credentials['currency'];
-
-		$paypal->return_url     = $credentials['return_url'];
-		$paypal->cancel_url     = $credentials['cancel_url'];
-
-		return $paypal;
-	}
 
 }

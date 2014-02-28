@@ -29,41 +29,28 @@ class Lib_Paypal{
 
 	public $token_details;
 
-	public function instance()
+	public static function instance()
 	{
-		if( self::$instance == null ){
-			self::$instance = new  self();
-		}
-		return self::$instance;
+		$paypal_config          = self::config('paypal');
+		$credentials            = $paypal_config[$paypal_config['use']];
+
+		$paypal                 = new self();
+		$paypal->sandbox        = $credentials['sandbox'];
+		$paypal->paypal_url     = $credentials['url'];
+		$paypal->paypal_email   = $credentials['receiver_email'];
+		$paypal->api_un         = $credentials['api_un'];
+		$paypal->api_pw         = $credentials['api_pw'];
+		$paypal->api_sig        = $credentials['api_sig'];
+		$paypal->paypal_api_url = $credentials['api_url'];
+		$paypal->currency       = $credentials['currency'];
+
+		$paypal->return_url     = $credentials['return_url'];
+		$paypal->cancel_url     = $credentials['cancel_url'];
+
+		return $paypal;
 	}
 
 	public function __construct(){
-
-		// $this->currency = 'SGD';
-		// $this->sandbox = true;
-
-		// if($this->sandbox){
-
-		// 	//sandbox
-		// 	$this->paypal_url = 'https://www.sandbox.paypal.com/cgi-bin/webscr';
-		// 	// $this->paypal_email = 'G725YRJS2AW92';
-		// 	$this->paypal_email = 'manalastas_ryan4@yahoo.com';
-		// 		$this->api_un = 'manalastas_ryan4_api1.yahoo.com';
-		// 		$this->api_pw = '1375077669';
-		// 		$this->api_sig = 'Ahm5F0260Lu30tbpDM64QZtSFJWkAWC3jinNbqkLRM0-ybetGE0eSGkZ';
-		// }else{
-		// 	$this->api_un = ' ';
-		// 		$this->api_pw = ' ';
-		// 		$this->api_sig = ' ';
-		// 	$this->paypal_url = "https://www.paypal.com/cgi-bin/webscr";
-		// 	$this->paypal_email = 'manalastas_ryan4@yahoo.com';
-		// }
-
-		// if($this->sandbox){
-		// 	$this->paypal_api_url = 'https://api-3t.sandbox.paypal.com/nvp';
-		// }else{
-		// 	$this->paypal_api_url = 'https://api-3t.paypal.com/nvp';
-		// }
 
  		$this->api_ver = '84';
 		//$this->notify_url = SGSH_PLUGIN_URL.'/standard_ipn.php';
@@ -236,33 +223,6 @@ class Lib_Paypal{
 
 	}
 
-	// public function chargeAmount( $amount, $itemname, $frequency)
-	// {
-
-	// 	$data['PAYMENTREQUEST_0_PAYMENTACTION'] ='Sale';
-	// 	$data['PAYERID']                        = $_GET['PayerID'];
-	// 	$data['TOKEN']                          = $_GET['token'];
-	// 	$data['RETURNFMFDETAILS']               = 1;
-
-	// 	$data["PAYMENTREQUEST_0_AMT"]           = $amount;
-	// 	$data["PAYMENTREQUEST_0_CURRENCYCODE"]  = $this->currency;
-	// 	$data["PAYMENTREQUEST_0_ITEMAMT"]       = $amount;
-	// 	$data["PAYMENTREQUEST_0_DESC"]          = "Idea Bank - Payment";
-
-	// 	$data['L_PAYMENTREQUEST_0_NAME0']       = $itemname;
-	// 	$data['L_PAYMENTREQUEST_0_AMT0']        = $amount;
-	// 	$data['L_PAYMENTREQUEST_0_QTY0']        = 1;
-	// 	// $data['L_PAYMENTREQUEST_0_NUMBER0']  = '';//$sgsh_current_user->user_id().'-'. $planID;
-
-	// 	$values = $this->getResponse('DoExpressCheckoutPayment',$data);
-	// 	if( isset($values['ACK']) and isset($values['PAYMENTINFO_0_PAYMENTSTATUS']) ){
-	// 		if( $values['ACK'] == 'Success' and $values['PAYMENTINFO_0_PAYMENTSTATUS'] == 'Completed'){
-	// 			return true;
-	// 		}
-	// 	}
-	// 	return false;
-
-	// }
 
 	public function createRecurringPayments($token, $amount, $payer_name , $itemname, $frequency)
 	{
@@ -348,4 +308,3 @@ class Lib_Paypal{
 	}
 
 }
-?>

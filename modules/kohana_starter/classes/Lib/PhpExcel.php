@@ -1,5 +1,5 @@
 <?php
 
-include(dirname(__FILE__).'/vendor/PHPExcel/PHPExcel.php');
+include(MODAPP.'/vendor/phpexcel/phpexcel/PHPExcel.php');
 class Lib_PhpExcel extends PHPExcel{
 }

@@ -1,6 +1,6 @@
 <?php
 
-include(dirname(__FILE__).'/vendor/HtmlLawed.php');
+include(MODAPP.'/vendor/htmllawed/htmllawed/HtmlLawed.php');
 class Lib_HtmlLawed{
 
 	public static function clean($html)

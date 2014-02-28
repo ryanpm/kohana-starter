@@ -2,10 +2,6 @@
 
 class Model_User extends ORM{
 
-    const STATUS_PENDING  = 0;
-    const STATUS_VERIFIED = 1;
-    const STATUS_INVALID  = 2; // ivnalid matrix as the university required
-
     protected $_primary_key = 'user_id';
     protected $_table_name	= 'users';
 
@@ -13,7 +9,6 @@ class Model_User extends ORM{
     );
 
     protected $_has_many = array(
-        'ideas' => array('model'=>'Idea', 'foreig_key'=>'ideas.user_id')
     );
 
     public function getID(){
@@ -70,8 +65,7 @@ class Model_User extends ORM{
 
         }
 
-        $this->reliability_total_reviews = $total_ratings;
-        $this->reliability = $average;
+        $this->rating = $average;
 
     }
 

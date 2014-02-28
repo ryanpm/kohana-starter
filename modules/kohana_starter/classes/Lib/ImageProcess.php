@@ -1,4 +1,4 @@
-<?php
+<?php defined('SYSPATH') or die('No direct script access.');
 
 class Lib_ImageProcess{
 
@@ -7,7 +7,7 @@ class Lib_ImageProcess{
 	public $quality    		= 100;
 	public $round    		= false;
 	public $crop     		= false;
-	public $crop_position = array('center','center');
+	public $crop_position = array('left','top');
 	public $extension;
 	public $source;
 	public $alternative_source;
@@ -17,10 +17,7 @@ class Lib_ImageProcess{
 	public $destination;
 
 	public $frame 			 = false;
-
-	public $background_transparent = false;
-	public $background_color = array(255,255,255); // R(255),G(255), B(255), A(127) applicable if frame is true
-
+	public $background_color = array(255,255,50); // applicable if frame is true
 	public $border_size 	 = 0;
 	public $border_color 	 = array(50,50,50);
 
@@ -30,7 +27,7 @@ class Lib_ImageProcess{
 
 	public static function getImageFile($image_src,$size=null)
 	{
-		$img = new ImageProcessLib($image_src,$size);
+		$img = new Lib_ImageProcess($image_src,$size);
 		$img->source = $image_src;
 		$img->size = $size;
 		return $img;
@@ -39,6 +36,7 @@ class Lib_ImageProcess{
 
 	function __construct($source=null,$size=null)
 	{
+		$this->cache_path = APPPATH . 'cache/';
 		$this->source 		= $source;
 		$this->size 		= $size;
 	}
@@ -54,16 +52,20 @@ class Lib_ImageProcess{
 	public function analyze()
 	{
 
-        if( !empty($this->source) ){
+        if( isset($this->source) ){
 
         	$found = false;
         	// source not found
-
-        	if(file_exists($this->source) and is_file($this->source) ){
+         	if(file_exists($this->source)){
+        		if (is_file($this->source)) {
         			$found = true;
-        	}elseif(file_exists($this->alternative_source)){
-        		$found = true;
-        		$this->source = $this->alternative_source;
+        		}
+        	}
+        	if (!$found) {
+	        	if(file_exists($this->alternative_source)){
+	        		$found = true;
+	        		$this->source = $this->alternative_source;
+	        	}
         	}
 
         	if($found){
@@ -80,12 +82,14 @@ class Lib_ImageProcess{
 		        $this->extension = isset($this->pathinfo)?$this->pathinfo:'';
         	}
 
-        	if( empty( $this->size) ){
-        		 $this->size = $this->imagestats[0].'x'. $this->imagestats[1];
+        	if(  $this->size == '' ){
+        		 if(isset($this->imagestats)){
+	        		 $this->size = $this->imagestats[0].'x'. $this->imagestats[1];
+        		 }else{
+	        		 $this->size = '100x100';
+	        	 }
         	}
-
         }
-
 
 	}
 
@@ -127,19 +131,19 @@ class Lib_ImageProcess{
 		$this->init();
         $cache_src = $this->cache_path.$this->getCacheName();
         // let see if the image has not yet been resized before
-      	if( file_exists($cache_src) and !$this->recache ){
+        try{
+        	//if failed file is not yet in the cache so catch it to resize the file
+        	if( $this->recache ){
+        		@unlink($cache_src);
+        	}
 	        $time   	=   gmdate('r', filemtime($cache_src));
-    	}else{
 
-    		if($this->recache){
-    			@unlink($cache_src);
-    		}
+        }catch(Exception $e){
+
 
             if( !$this->is_image or !$this->is_existing ){
-            	if( $this->size =='' )return;
 
         		list($x,$y) = explode("x",$this->size);
-
                 $im = imagecreatetruecolor($x,$y);
 
                 $white = imagecolorallocate($im, 255, 255, 255 );
@@ -163,7 +167,7 @@ class Lib_ImageProcess{
 
 	        $time   	=   gmdate('r', filemtime($cache_src));
 
-    	}
+        }
 
         $etag   	=   md5($time.$cache_src);
         $image_info = 	getimagesize($cache_src);
@@ -303,12 +307,10 @@ class Lib_ImageProcess{
 		if( $this->frame ){
 
 			$im_dst = imagecreatetruecolor($rw,$rh);
-			$dest_x = floor(($rw-$nw)/2);
-			$dest_y = floor(($rh-$nh)/2);
+			$dest_x = ceil(($rw-$nw)/2);
+			$dest_y = ceil(($rh-$nh)/2);
 			$border_x  = $rw;
 			$border_y  = $rh;
-
-
 
 		}else{
 
@@ -320,38 +322,12 @@ class Lib_ImageProcess{
 
 		if( $this->border_size > 0 ){
 			$cc = $this->parseColor($this->border_color);
-		}elseif( $this->frame ){
+		}else{
 			$cc = $this->parseColor($this->background_color);
 		}
 
-		if( isset($cc) ){
-
-			if( $this->background_transparent ){
-				//imagecolortransparent($im_dst, $background_color);
-				//if($ext=="png") {
-					imagealphablending($im_dst, false);
-		            $colorTransparent = imagecolorallocatealpha($im_dst, 0, 0, 0, 127);
-		            imagefill($im_dst, 0, 0, $colorTransparent);
-		            imagesavealpha($im_dst, true);
-	            //} elseif($ext=="gif") {
-		            //  $trnprt_indx = imagecolortransparent($img);
-		            // if ($trnprt_indx >= 0) {
-		            //     //its transparent
-		            //     $trnprt_color = imagecolorsforindex($img, $trnprt_indx);
-		            //     $trnprt_indx = imagecolorallocate($new_img, $trnprt_color['red'], $trnprt_color['green'], $trnprt_color['blue']);
-		            //     imagefill($new_img, 0, 0, $trnprt_indx);
-		            //     imagecolortransparent($new_img, $trnprt_indx);
-		            // }
-	            //}
-
-				$outputFunction		= 'ImagePng';
-				$quality = 9;
-
-			}else{
-				$background_color  = imagecolorallocate($im_dst,$cc[0],$cc[1],$cc[2]);
-				imagefill($im_dst, 0, 0, $background_color);
-			}
-		}
+		$background_color  = imagecolorallocate($im_dst,$cc[0],$cc[1],$cc[2]);
+		imagefill($im_dst, 0, 0, $background_color);
 
 		if( $this->border_size > 0 ){
 
@@ -494,6 +470,7 @@ class Lib_ImageProcess{
 	}
 
 
+
 	public function parseColor($color)
 	{
 		if( is_string($color) ){
@@ -501,16 +478,11 @@ class Lib_ImageProcess{
 				$r = hexdec(substr($color, 1,2));
 				$g = hexdec(substr($color, 3,2));
 				$b = hexdec(substr($color, 5,2));
-				if( strlen($color) > 7  ){
-					$a = hexdec(substr($color, 7,2));
-					return array($r,$g,$b,$a);
-				}
-				return array($r,$g,$b);
 			}
+			return array($r,$g,$b);
 		}elseif( is_array($color) ){
 			return $color;
 		}
-		return null;
 
 	}
 
