@@ -200,10 +200,18 @@ class Lib_ImageProcess{
 
 		if( $this->size != "" ){
 
-			list($rw,$rh)     = explode("x",$this->size);
+			list($rw,$rh)     = explode("x",strtolower($this->size));
+			if( $rh == 'q' ){
 
-			//adjust image ratio to fit the given dimensions
-			if( $sw > $rw and $sw > $sh){//
+				$nw = $rw;
+				$rh = $nh = floor(($rw*$sh)/$sw);
+			}elseif( $rw == 'q' ){
+
+				$nh = $rh;
+				$rw = $nw = floor(($rh*$sw)/$sh);
+
+			}elseif( $sw > $rw and $sw > $sh){
+				//adjust image ratio to fit the given dimensions
 				$nw = $rw;
 				$nh = floor(($rw*$sh)/$sw);
 				if( $nh > $rh ){
