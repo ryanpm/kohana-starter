@@ -29,28 +29,41 @@ class Lib_Paypal{
 
 	public $token_details;
 
-	public static function instance()
+	public function instance()
 	{
-		$paypal_config          = self::config('paypal');
-		$credentials            = $paypal_config[$paypal_config['use']];
-
-		$paypal                 = new self();
-		$paypal->sandbox        = $credentials['sandbox'];
-		$paypal->paypal_url     = $credentials['url'];
-		$paypal->paypal_email   = $credentials['receiver_email'];
-		$paypal->api_un         = $credentials['api_un'];
-		$paypal->api_pw         = $credentials['api_pw'];
-		$paypal->api_sig        = $credentials['api_sig'];
-		$paypal->paypal_api_url = $credentials['api_url'];
-		$paypal->currency       = $credentials['currency'];
-
-		$paypal->return_url     = $credentials['return_url'];
-		$paypal->cancel_url     = $credentials['cancel_url'];
-
-		return $paypal;
+		if( self::$instance == null ){
+			self::$instance = new  self();
+		}
+		return self::$instance;
 	}
 
 	public function __construct(){
+
+		// $this->currency = 'SGD';
+		// $this->sandbox = true;
+
+		// if($this->sandbox){
+
+		// 	//sandbox
+		// 	$this->paypal_url = 'https://www.sandbox.paypal.com/cgi-bin/webscr';
+		// 	// $this->paypal_email = 'G725YRJS2AW92';
+		// 	$this->paypal_email = 'manalastas_ryan4@yahoo.com';
+		// 		$this->api_un = 'manalastas_ryan4_api1.yahoo.com';
+		// 		$this->api_pw = '1375077669';
+		// 		$this->api_sig = 'Ahm5F0260Lu30tbpDM64QZtSFJWkAWC3jinNbqkLRM0-ybetGE0eSGkZ';
+		// }else{
+		// 	$this->api_un = ' ';
+		// 		$this->api_pw = ' ';
+		// 		$this->api_sig = ' ';
+		// 	$this->paypal_url = "https://www.paypal.com/cgi-bin/webscr";
+		// 	$this->paypal_email = 'manalastas_ryan4@yahoo.com';
+		// }
+
+		// if($this->sandbox){
+		// 	$this->paypal_api_url = 'https://api-3t.sandbox.paypal.com/nvp';
+		// }else{
+		// 	$this->paypal_api_url = 'https://api-3t.paypal.com/nvp';
+		// }
 
  		$this->api_ver = '84';
 		//$this->notify_url = SGSH_PLUGIN_URL.'/standard_ipn.php';
@@ -108,37 +121,88 @@ class Lib_Paypal{
 		$def_data['VERSION'] 	= $this->api_ver;
 		$data = $def_data + $data;
 
-		$postdata = http_build_query(
-		    array('METHOD'=>$method)+$data
-		);
+		$postdata = array('METHOD'=>$method)+$data;
 
-		$opts = array('http' =>
+		$values                  = $this->getContent_Curl($postdata);
+		if( $values != null ){
+
+			$this->response          = $values;
+			$this->profile_id        = isset($values['PROFILEID'])?$values['PROFILEID']:'';
+			$history                 = ORM::factory('PaypalHistory');
+			$history->date_created   = date('Y-m-d H:i:s');
+			$history->txn_type       = $method;
+			$history->user_id        = Lib_App::user()->getID();
+			$history->subscr_id      = $this->profile_id;
+			$history->txn_id         = isset($values['PAYMENTINFO_0_TRANSACTIONID'])?$values['PAYMENTINFO_0_TRANSACTIONID']:'';
+			$history->payment_status = isset($values['PAYMENTINFO_0_PAYMENTSTATUS'])?$values['PAYMENTINFO_0_PAYMENTSTATUS']:'';
+			$history->token          = isset($data['TOKEN'])?$data['TOKEN']:'';
+			$history->post_data      = serialize($values);
+			$history->request_data   = serialize($data+array('paypal_api_url'=>$this->paypal_api_url,'paypal_url'=>$this->paypal_url));
+			$history->save();
+
+		}
+		return $values;
+
+	}
+
+	private function getContent_Curl($postdata){
+
+		$data_array = array();
+		foreach ($postdata as $key => $value) {
+			$data_array[] = $key .'='.$value;
+		}
+		$data = implode('&', $data_array);
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $this->paypal_api_url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+          "Content-type: application/x-www-form-urlencoded",
+          "Content-length: ".strlen($data))
+        );
+
+        try {
+            $result = curl_exec($ch);
+            if (FALSE === $result)  throw new Exception(curl_error($ch), curl_errno($ch));
+            curl_close($ch);
+            return $this->getReponseArray($result);
+        } catch(Exception $e) {
+
+            trigger_error(sprintf(
+                'Curl failed with error #%d: %s',
+                $e->getCode(), $e->getMessage()),
+                E_USER_ERROR);
+
+        }
+        return null;
+
+	}
+
+	private function getContent_FGC($postdata){
+		$postdata = http_build_query($postdata);
+
+		$opts = array('https' =>
 		    array(
 		        'method'  => 'POST',
-		        'header'  => 'Content-type: application/x-www-form-urlencoded',
+		        'header'  => "Content-type: application/x-www-form-urlencoded\r\n".
+		        			  "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\n".
+		        			  "Accept-Encoding: gzip,deflate,sdch\r\n".
+		        			  "Cache-Control: max-age=0\r\n".
+		        			  "Connection: keep-alive\r\n".
+		        			  "Host: ".$this->paypal_api_url."\r\n".
+		        			  "Origin: http://local.ideabank.com\r\n".
+		        			  "User-Agent: Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.146 Safari/537.3\r\n".
+		        			  'Accept-Language: en-US,en;q=0.8',
 		        'content' => $postdata
 		    )
 		);
-		$context  = stream_context_create($opts);
-		$result = file_get_contents($this->paypal_api_url, false, $context);
-		$values = $this->getReponseArray($result);
 
-		$this->response = $values;
-		$this->profile_id =  isset($values['PROFILEID'])?$values['PROFILEID']:'';
-
-		$history = ORM::factory('PaypalHistory');
-		$history->date_created  = date('Y-m-d H:i:s');
-		$history->txn_type = $method;
-		$history->user_id   = Lib_App::user()->getID();
-		$history->subscr_id 	=  $this->profile_id;
-		$history->txn_id =  isset($values['PAYMENTINFO_0_TRANSACTIONID'])?$values['PAYMENTINFO_0_TRANSACTIONID']:'';
-		$history->payment_status  =  isset($values['PAYMENTINFO_0_PAYMENTSTATUS'])?$values['PAYMENTINFO_0_PAYMENTSTATUS']:'';
-		$history->token = isset($data['TOKEN'])?$data['TOKEN']:'';
-		$history->post_data = serialize($values);
-		$history->request_data  = serialize($data+array('paypal_api_url'=>$this->paypal_api_url,'paypal_url'=>$this->paypal_url));
-		$history->save();
-		return $values;
-
+		$context                 = stream_context_create($opts);
+		$result                  = file_get_contents($this->paypal_api_url,  false, $context);
+		return $this->getReponseArray($result);
 	}
 
 	public function getCheckoutUlr()
@@ -223,6 +287,33 @@ class Lib_Paypal{
 
 	}
 
+	// public function chargeAmount( $amount, $itemname, $frequency)
+	// {
+
+	// 	$data['PAYMENTREQUEST_0_PAYMENTACTION'] ='Sale';
+	// 	$data['PAYERID']                        = $_GET['PayerID'];
+	// 	$data['TOKEN']                          = $_GET['token'];
+	// 	$data['RETURNFMFDETAILS']               = 1;
+
+	// 	$data["PAYMENTREQUEST_0_AMT"]           = $amount;
+	// 	$data["PAYMENTREQUEST_0_CURRENCYCODE"]  = $this->currency;
+	// 	$data["PAYMENTREQUEST_0_ITEMAMT"]       = $amount;
+	// 	$data["PAYMENTREQUEST_0_DESC"]          = "Idea Bank - Payment";
+
+	// 	$data['L_PAYMENTREQUEST_0_NAME0']       = $itemname;
+	// 	$data['L_PAYMENTREQUEST_0_AMT0']        = $amount;
+	// 	$data['L_PAYMENTREQUEST_0_QTY0']        = 1;
+	// 	// $data['L_PAYMENTREQUEST_0_NUMBER0']  = '';//$sgsh_current_user->user_id().'-'. $planID;
+
+	// 	$values = $this->getResponse('DoExpressCheckoutPayment',$data);
+	// 	if( isset($values['ACK']) and isset($values['PAYMENTINFO_0_PAYMENTSTATUS']) ){
+	// 		if( $values['ACK'] == 'Success' and $values['PAYMENTINFO_0_PAYMENTSTATUS'] == 'Completed'){
+	// 			return true;
+	// 		}
+	// 	}
+	// 	return false;
+
+	// }
 
 	public function createRecurringPayments($token, $amount, $payer_name , $itemname, $frequency)
 	{
@@ -308,3 +399,4 @@ class Lib_Paypal{
 	}
 
 }
+?>
